@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>श्री राम दर्शन - इंटरैक्टिव अनुष्ठान</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Hindi&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --saffron: #FF9933;
+            --deep-saffron: #FF6600;
+            --temple-gold: #D4AF37;
+        }
+
+        /* Fixed viewport to defeat mobile browser address bar issues.
+           No flex centering here anymore to avoid intrinsic height bugs on mobile.
+        */
+        html, body {
+            font-family: 'Poppins', sans-serif;
+            background: #000;
+            color: white;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh; /* Modern mobile viewport height */
+            margin: 0;
+            padding: 0;
+        }
+
+        .hindi-text { font-family: 'Tiro Devanagari Hindi', serif; }
+
+        /* Blurred background for desktop to gracefully fill empty side spaces */
+        .app-bg {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url('https://raw.githubusercontent.com/mm093-it/Temple/064bbed39b6bcca110b5589dd699cf036a2cb7a0/ram-mandir-murti.jpg');
+            background-size: cover;
+            background-position: center;
+            filter: blur(25px) brightness(0.4);
+            transform: scale(1.1);
+            z-index: 0;
+        }
+
+        .temple-container {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 1;
+        }
+
+        /* THE ULTIMATE RESPONSIVE FIX
+           Absolute positioning guarantees the image takes up the entire screen.
+           'object-fit: cover' prevents black bars on mobile.
+           'object-position: center bottom' ensures the red platform is NEVER cropped.
+        */
+        .idol-image {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover; 
+            object-position: center bottom; 
+            filter: brightness(1.05) contrast(1.05);
+            display: block;
+        }
+
+        /* Desktop Fallback (Landscape screens): Prevents cropping idol's head */
+        @media (orientation: landscape) {
+            .idol-image {
+                object-fit: contain; 
+            }
+        }
+
+        /* UI Overlays strictly bound to the viewport */
+        .ui-layer {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .header-title {
+            position: absolute;
+            top: 5%;
+            width: 100%;
+            text-align: center;
+            pointer-events: auto;
+            text-shadow: 0 3px 15px rgba(0,0,0,1);
+        }
+
+        /* Bell - Anchored relative to the viewport */
+        .bell-container {
+            position: absolute;
+            top: 4%; left: 5%;
+            width: clamp(55px, 15vw, 90px);
+            cursor: pointer;
+            pointer-events: auto;
+            transform-origin: top center;
+        }
+        .bell-container img { width: 100%; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.8)); }
+        .bell-container.ringing { animation: swing 2s ease-in-out; }
+
+        @keyframes swing {
+            0%, 100% { transform: rotate(0deg); }
+            20% { transform: rotate(20deg); }
+            40% { transform: rotate(-15deg); }
+            60% { transform: rotate(10deg); }
+            80% { transform: rotate(-5deg); }
+        }
+
+        /* TRAY LOCKED TO RED PLATFORM: 
+           Bottom 2% places it perfectly on the platform in both Mobile & Desktop views 
+        */
+        .ritual-tray {
+            position: absolute;
+            bottom: 2%; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: 95%;
+            max-width: 550px;
+            display: flex;
+            justify-content: center;
+            gap: 2%;
+            pointer-events: auto;
+            z-index: 50;
+        }
+
+        .ritual-item {
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            width: 18%;
+            transition: transform 0.2s;
+        }
+        .ritual-item:hover { transform: translateY(-5px) scale(1.05); }
+        
+        /* 20% Bigger Items in tray */
+        .ritual-item img { 
+            width: 100%; 
+            height: auto;
+            max-height: clamp(50px, 8vh, 70px); 
+            object-fit: contain;
+            filter: drop-shadow(0 5px 8px rgba(0,0,0,0.9));
+        }
+        
+        .ritual-item span { 
+            font-size: clamp(0.65rem, 3vw, 0.85rem); 
+            color: #fff; 
+            font-weight: 800; 
+            margin-top: 6px; 
+            text-shadow: 1px 1px 3px #000;
+            white-space: nowrap;
+        }
+
+        /* Animation Objects - Hidden until invoked */
+        .anim-obj {
+            position: absolute;
+            left: 50%;
+            bottom: 12%; 
+            transform: translateX(-50%);
+            z-index: 60;
+            display: none;
+            pointer-events: none;
+        }
+
+        /* 10% Bigger Incense Stick */
+        #active-incense { width: clamp(65px, 15vw, 85px); } 
+        #active-shankh { width: clamp(65px, 18vw, 85px); }
+        #active-aarti { width: clamp(55px, 15vw, 75px); }
+        #active-prasad { width: clamp(55px, 15vw, 75px); }
+
+        #active-flower-gif {
+            position: absolute;
+            top: 40%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 85vw; max-width: 400px;
+            display: none; z-index: 110;
+            pointer-events: none;
+        }
+
+        /* Fluid Circular Ritual Animations (Centered on Idol) */
+        .performing-aarti { animation: aartiLoop 7s ease-in-out forwards; }
+        @keyframes aartiLoop {
+            0%   { transform: translate(-50%, 0) scale(1); opacity: 0; }
+            10%  { transform: translate(-50%, -35vh) rotate(0deg) translateX(0) scale(2.2); opacity: 1; } 
+            25%  { transform: translate(-50%, -35vh) rotate(120deg) translateX(50px) rotate(-120deg) scale(2.2); opacity: 1; }
+            40%  { transform: translate(-50%, -35vh) rotate(240deg) translateX(50px) rotate(-240deg) scale(2.2); opacity: 1; }
+            55%  { transform: translate(-50%, -35vh) rotate(360deg) translateX(50px) rotate(-360deg) scale(2.2); opacity: 1; }
+            70%  { transform: translate(-50%, -35vh) rotate(480deg) translateX(50px) rotate(-480deg) scale(2.2); opacity: 1; }
+            85%  { transform: translate(-50%, -35vh) rotate(600deg) translateX(50px) rotate(-600deg) scale(2.2); opacity: 1; }
+            100% { transform: translate(-50%, 0) scale(1); opacity: 0; }
+        }
+
+        .performing-incense { animation: incenseLoop 8s ease-in-out forwards; }
+        @keyframes incenseLoop {
+            0%   { transform: translate(-50%, 0) scale(1); opacity: 0; }
+            10%  { transform: translate(-50%, -38vh) rotate(0deg) translateX(40px) rotate(0deg) scale(1.6); opacity: 1; }
+            25%  { transform: translate(-50%, -38vh) rotate(120deg) translateX(40px) rotate(-120deg) scale(1.6); opacity: 1; }
+            45%  { transform: translate(-50%, -38vh) rotate(240deg) translateX(40px) rotate(-240deg) scale(1.6); opacity: 1; }
+            65%  { transform: translate(-50%, -38vh) rotate(360deg) translateX(40px) rotate(-360deg) scale(1.6); opacity: 1; }
+            100% { transform: translate(100%, -3vh) scale(1.1); opacity: 1; } /* Settle on right platform naturally */
+        }
+
+        .performing-prasad { animation: prasadLoop 4s ease-in-out forwards; }
+        @keyframes prasadLoop {
+            0%   { transform: translate(-50%, 0) scale(1); opacity: 0; }
+            20%  { opacity: 1; }
+            45%  { transform: translate(-50%, -45vh) scale(2.2); opacity: 1; }
+            75%  { transform: translate(-50%, -45vh) scale(2.2); opacity: 1; }
+            100% { transform: translate(-50%, 0) scale(1); opacity: 0; }
+        }
+
+        .shankh-path { animation: shankhRitual 8s ease-in-out forwards; }
+        @keyframes shankhRitual {
+            0% { opacity: 0; left: 50%; transform: translate(-50%, 0) scale(0.4); }
+            15% { opacity: 1; top: 25vh; left: 15vw; transform: translate(0, 0) scale(1.5) rotate(-10deg); }
+            85% { opacity: 1; top: 25vh; left: 15vw; transform: translate(0, 0) scale(1.5) rotate(-10deg); }
+            100% { opacity: 0; left: 50%; transform: translate(-50%, 0) scale(0.4); }
+        }
+
+        /* Music Toggle */
+        .music-toggle {
+            position: absolute;
+            top: 4%; right: 5%;
+            z-index: 60;
+            background: rgba(0,0,0,0.6);
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid var(--temple-gold);
+            color: white;
+            pointer-events: auto;
+        }
+
+        /* Curtains */
+        .curtain {
+            position: absolute; 
+            top: 0; bottom: 0; width: 50.5vw;
+            background: #250000;
+            z-index: 200;
+            transition: transform 3s cubic-bezier(0.77, 0, 0.175, 1);
+            box-shadow: inset 0 0 100px rgba(0,0,0,0.9);
+        }
+        .curtain.left { left: 0; border-right: 4px solid var(--temple-gold); }
+        .curtain.right { right: 0; border-left: 4px solid var(--temple-gold); }
+        .opened .left { transform: translateX(-100%); }
+        .opened .right { transform: translateX(100%); }
+
+        .start-btn {
+            z-index: 210; background: var(--temple-gold); color: #000;
+            padding: 20px 50px; border-radius: 60px; font-weight: bold;
+            cursor: pointer; border: 4px solid white; box-shadow: 0 15px 40px rgba(0,0,0,0.8);
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        }
+
+        #toast {
+            position: absolute;
+            bottom: 20vh; left: 50%; transform: translateX(-50%);
+            background: rgba(200, 80, 0, 0.95);
+            color: white; padding: 12px 30px; border-radius: 50px;
+            font-weight: bold; opacity: 0; transition: 0.3s;
+            z-index: 300; pointer-events: none;
+            white-space: nowrap;
+            font-size: 1.1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-bg"></div>
+
+    <div id="templeApp" class="temple-container">
+        
+        <div id="curtainLeft" class="curtain left"></div>
+        <div id="curtainRight" class="curtain right"></div>
+        <button id="entryBtn" class="start-btn" onclick="openTemple()">
+            <span class="hindi-text block text-2xl mb-1">मंदिर में प्रवेश करें</span>
+            <span class="text-xs tracking-[0.3em]">दिव्य दर्शन</span>
+        </button>
+
+        <!-- Image is absolute and forced to cover the entire screen -->
+        <img src="https://raw.githubusercontent.com/mm093-it/Temple/064bbed39b6bcca110b5589dd699cf036a2cb7a0/ram-mandir-murti.jpg" 
+             alt="Lord Ram" class="idol-image" id="ram-idol">
+
+        <!-- UI completely anchored to the absolute viewport -->
+        <div class="ui-layer">
+            
+            <div class="header-title">
+                <h1 class="hindi-text text-2xl sm:text-4xl text-orange-400 font-bold tracking-widest">॥ जय श्री राम ॥</h1>
+            </div>
+
+            <div class="bell-container" id="bell" onclick="ringBell()">
+                <img src="https://raw.githubusercontent.com/mm093-it/Temple/4a5a605825c1766ba1fc793104cb599e37426b13/bell4.png" alt="घंटी">
+            </div>
+
+            <div id="musicBtn" class="music-toggle" onclick="toggleMusic()">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 18V5l12-2v13"></path>
+                    <circle cx="6" cy="18" r="3"></circle>
+                    <circle cx="18" cy="16" r="3"></circle>
+                </svg>
+            </div>
+
+            <!-- Active Animation Objects -->
+            <img id="active-aarti" class="anim-obj" src="https://raw.githubusercontent.com/mm093-it/Temple/a26800f9e7f82f3c36280a66b9ae1a96bf661692/aarti%20thali.webp">
+            <img id="active-incense" class="anim-obj" src="https://raw.githubusercontent.com/mm093-it/Temple/a5c7516ed05912c073b9b99330c0604b7a577787/incense%20stick%201.gif">
+            <img id="active-prasad" class="anim-obj" src="https://raw.githubusercontent.com/mm093-it/Temple/4ab785c3e7de44ac532d6c8069f1a12c148eeee0/prasad-removebg-preview.png">
+            <img id="active-flower-gif" src="https://raw.githubusercontent.com/mm093-it/Temple/1acdae15d21a8c96117dec6c1a8753261f4cf07d/flower%201.gif">
+            <img id="active-shankh" class="anim-obj" src="https://raw.githubusercontent.com/mm093-it/Temple/4ab785c3e7de44ac532d6c8069f1a12c148eeee0/Gemini_Generated_Image_xm7hqlxm7hqlxm7h-removebg-preview.png">
+
+            <!-- RITUAL TRAY (Now permanently locked onto the red platform at the bottom) -->
+            <div class="ritual-tray">
+                <div class="ritual-item" onclick="startAarti()">
+                    <img src="https://raw.githubusercontent.com/mm093-it/Temple/a26800f9e7f82f3c36280a66b9ae1a96bf661692/aarti%20thali.webp" alt="आरती">
+                    <span class="hindi-text">आरती</span>
+                </div>
+                <div class="ritual-item" onclick="startFlowerRitual()">
+                    <img src="https://raw.githubusercontent.com/mm093-it/Temple/1acdae15d21a8c96117dec6c1a8753261f4cf07d/flower.png" alt="पुष्प">
+                    <span class="hindi-text">पुष्प वर्षा</span>
+                </div>
+                <div class="ritual-item" onclick="startIncenseRitual()">
+                    <img src="https://raw.githubusercontent.com/mm093-it/Temple/53b1a510935d38244587ec82d34555a1974f9561/incense%20stick.png" alt="धूप">
+                    <span class="hindi-text">धूप</span>
+                </div>
+                <div class="ritual-item" onclick="offerPrasad()">
+                    <img src="https://raw.githubusercontent.com/mm093-it/Temple/4ab785c3e7de44ac532d6c8069f1a12c148eeee0/prasad-removebg-preview.png" alt="प्रसाद">
+                    <span class="hindi-text">प्रसाद</span>
+                </div>
+                <div class="ritual-item" onclick="startShankhRitual()">
+                    <img src="https://raw.githubusercontent.com/mm093-it/Temple/4ab785c3e7de44ac532d6c8069f1a12c148eeee0/Gemini_Generated_Image_xm7hqlxm7hqlxm7h-removebg-preview.png" alt="शंख">
+                    <span class="hindi-text">शंख</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="toast" class="hindi-text">विधि पूर्ण हुई</div>
+    </div>
+
+    <!-- Audio -->
+    <audio id="bhajan" loop src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"></audio>
+    <audio id="bellSound" src="https://raw.githubusercontent.com/mm093-it/Temple/4a5a605825c1766ba1fc793104cb599e37426b13/temple-bell-543.mp3"></audio>
+    <audio id="shankhSound" src="https://raw.githubusercontent.com/mm093-it/Temple/a26800f9e7f82f3c36280a66b9ae1a96bf661692/shankh%20audio.mp3"></audio>
+
+    <script>
+        const bhajan = document.getElementById('bhajan');
+        const bellSound = document.getElementById('bellSound');
+        const shankhSound = document.getElementById('shankhSound');
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.style.opacity = '1';
+            setTimeout(() => { t.style.opacity = '0'; }, 3000);
+        }
+
+        function openTemple() {
+            document.getElementById('templeApp').classList.add('opened');
+            document.getElementById('entryBtn').style.display = 'none';
+            showToast("जय श्री राम!");
+        }
+
+        function ringBell() {
+            const b = document.getElementById('bell');
+            if (b.classList.contains('ringing')) return;
+            b.classList.add('ringing');
+            bellSound.currentTime = 0;
+            bellSound.play().catch(() => {});
+            setTimeout(() => b.classList.remove('ringing'), 2000);
+        }
+
+        function startAarti() {
+            const a = document.getElementById('active-aarti');
+            if (a.style.display === 'block') return;
+            a.style.display = 'block';
+            a.classList.add('performing-aarti');
+            showToast("आरती हो रही है...");
+            setTimeout(() => { a.style.display = 'none'; a.classList.remove('performing-aarti'); }, 7000);
+        }
+
+        function startFlowerRitual() {
+            const f = document.getElementById('active-flower-gif');
+            f.style.display = 'block';
+            showToast("पुष्प वर्षा...");
+            setTimeout(() => { f.style.display = 'none'; }, 3000);
+        }
+
+        function startIncenseRitual() {
+            const i = document.getElementById('active-incense');
+            i.style.display = 'block';
+            i.classList.remove('performing-incense');
+            void i.offsetWidth;
+            i.classList.add('performing-incense');
+            showToast("धूप विधि...");
+        }
+
+        function offerPrasad() {
+            const p = document.getElementById('active-prasad');
+            if (p.style.display === 'block') return;
+            p.style.display = 'block';
+            p.classList.add('performing-prasad');
+            showToast("प्रसाद चढ़ाया जा रहा है...");
+            setTimeout(() => { p.style.display = 'none'; p.classList.remove('performing-prasad'); }, 4000);
+        }
+
+        function startShankhRitual() {
+            const s = document.getElementById('active-shankh');
+            if (s.style.display === 'block') return;
+            s.style.display = 'block';
+            s.classList.add('shankh-path');
+            showToast("शंखनाद...");
+            shankhSound.currentTime = 0;
+            shankhSound.play().catch(() => {});
+            setTimeout(() => {
+                s.style.display = 'none';
+                s.classList.remove('shankh-path');
+                shankhSound.pause();
+            }, 8000);
+        }
+
+        function toggleMusic() {
+            if (bhajan.paused) {
+                bhajan.play().catch(() => showToast("प्रवेश बटन दबाएं"));
+                showToast("भजन प्रारंभ");
+            } else {
+                bhajan.pause();
+                showToast("भजन बंद");
+            }
+        }
+    </script>
+</body>
+</html>
